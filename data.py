@@ -14,15 +14,19 @@ voteHistory = voteHistory.loc[voteHistory['version'] == 'US']
 # voteHistory.to_csv("vote_history.csv")
 lastSeason = int(voteHistory["season"].max())
 
-# have a list of dataframes
+# have a list of dataframes corresponding to each season
 seasons = []
 # have a loop that goes through seasons and appends to the list of dataframes
 for i in range(1, 44):
     seasonNum = float(i)
     seasonVotes = voteHistory.loc[voteHistory["season"] == seasonNum]
     seasons.append(seasonVotes)
-# make a matrix for each contestant for each episode of each season
+    
+# make a matrix (2-D array) for each contestant for each episode of each season
+# structure:
+# {season : {episode : {contestant : matrix}}}
 networks = {}
+# aggregate results over an episode per contestant
 aggNet = {}
 
 seasonNum = 0
@@ -41,8 +45,6 @@ for season in seasons:
         contestNumber+= 1
     contestantDicts.append(contestantDict)
         
-    
-    
     lastEpisode = int(season["episode"].max())
     
     # go through each episode
@@ -72,37 +74,41 @@ for season in seasons:
             for i in range(numContestants):
                 contestantNet.append([0 for i in range(numContestants)])
                 
-            # if i and j both voted for this contestant, A_{ij} = 1
-            
+            # make np array to make it easier to work with networkx
             contestantNet = np.asarray(contestantNet)
             
         
             # everyone in this list should be marked 1 with each other in the matrix
             votedFor = episodeVotes.loc[episodeVotes["vote"] == contestant]["castaway"].unique()
             
-            # can make this more efficient
+            # can make this more efficient 
             for person in votedFor:
                 for person2 in votedFor:
                     if person == person2:
                         continue
                     contestantNet[contestantDict[person]][contestantDict[person2]] = 1
                     # maybe doing this too much? need to have it for each person, aggregated wouldnt have it for each person
-                    aggEpisode += contestantNet
+            aggEpisode += contestantNet
       
             G = nx.from_numpy_array(contestantNet)
             
             # tuple with adjacency matrix and the networkx graph
             networks[seasonName][episode][contestant] = (contestantNet, G)
+            
         
         # aggregate for each episode
-        # print(aggEpisode)
+        # this one has for each episode, aggregated over the contestants
         aggNet[seasonName][episode] = (aggEpisode, nx.from_numpy_array(aggEpisode))
+        
+        # make one for each contestant, aggregated over the episodes
         aggSeason += aggEpisode
     
-    aggNet[seasonName] = (aggSeason, nx.from_numpy_array(aggSeason))
-
-            
+    aggNet[seasonName] = (aggSeason, nx.from_numpy_array(aggSeason))            
 # print(networks)
-# print(aggNet["season43"])
+
+# just call these A, store the data in somewhere so I can send it over in a file (also send over the winners)
+print(aggNet["season43"])
+
+# what type of draw to use? doesnt matter for now
 nx.draw(aggNet["season43"][1])
 plt.show()
